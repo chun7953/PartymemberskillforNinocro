@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<style>
+/* モバイル最適化 */
+body {
+font-family: Arial, sans-serif;
+margin: 0;
+padding: 10px;
+max-width: 100%;
+overflow-x: auto;
+}
+
+h1 {
+display: flex;
+align-items: center;
+}
+
+.highlight {
+background-color: yellow; /* ハイライトの色 */
+}
+
+.row-style-1 {
+background-color: #f0f0f0; /* 1つ目のスタイル */
+}
+
+.row-style-2 {
+background-color: #e0e0e0; /* 2つ目のスタイル */
+}
+
+select {
+margin-left: 10px;
+}
+
+.control-container {
+display: flex;
+align-items: center;
+margin-left: 10px; /* タイトルとボタンの間にスペースを追加 */
+}
+
+.margin-left {
+margin-left: 15px; /* 各要素間のスペース調整 */
+}
+
+.small-text {
+font-size: 0.6em; /* 小さなフォントサイズ */
+}
+</style>
+<script>
+let selectedValues1 = []; // 各行の選択された値を格納する配列
+let selectedValues2 = []; // 各行の選択された値を格納する配列 for スキルレベル登録
+let visibleColumns = 23; // デフォルト表示列数を全てに設定
+
+// プルダウンの選択肢
+const dropdownOptions = [
+"1", "2", "3", "4", "5", "6", "7", "8", "9", "10",
+"①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨",
+"完"
+];
+
+function onLoad() {
+    // パテメンスキルのデータ取得
+    google.script.run.withSuccessHandler(renderTable1).getHeaderAndData();
+    
+    // スキルレベル登録のデータを一度だけ取得
+    if (!document.getElementById('header2').innerHTML) {
+        google.script.run.withSuccessHandler(renderTable2).getHeaderAndData();
+    }
+}
+
+function updateLastUpdatedDate(date) {
+document.getElementById('lastUpdated').innerText = `最終更新日: ${date}`;
+}
+
+let displayedRowCountTable1 = 5; // Default displayed rows for table1
+
+function updateRowCount() {
+    const select = document.getElementById('rowSelect');
+    displayedRowCountTable1 = parseInt(select.value); // table1の行数を取得
+    document.getElementById('tableBody').innerHTML = ''; // table1をクリア
+    onLoad(); // table1を再描画
+}
+
+function renderTable1(data) {
+    const header = data.header;
+    const rows = data.data;
+
+    // ヘッダーの表示
+    const headerRow = header.slice(0, visibleColumns).map(col => `<th>${col}</th>`).join('');
+    document.getElementById('header').innerHTML = `<tr>${headerRow}</tr>`;
+
+    // ユニークな値を取得してプルダウンの選択肢を作成
+    const uniqueValues = [...new Set(rows.map(row => row[1]))]; // B列のユニークな値
+    uniqueValues.sort(); // 50音順にソート
+
+    // 各行にプルダウンを表示
+    for (let i = 0; i < displayedRowCountTable1; i++) {
+        const rowClass = (Math.floor(i / 5) % 2 === 0) ? 'row-style-1' : 'row-style-2'; // 5行ごとにスタイルを変更
+        const emptyRow = header.slice(0, visibleColumns).map((col, index) => {
+            if (index === 1) { // 2列目
+                return `<td>
+                    <select id="dropdown1-${i}" onchange="updateSelectedValue1(${i}, this.value)">
+                        <option value="">選択</option>
+                        ${uniqueValues.map(value => `<option value="${value}" ${selectedValues1[i] === value ? 'selected' : ''}>${value}</option>`).join('')}
+                    </select>
+                </td>`;
+            } else {
+                return '<td onclick="toggleHighlight(this)"></td>'; // 他の列は空白
+            }
+        }).join('');
+
+        // 2列目が未選択の場合、他のセルを空白にする
+        const rowData = rows[i] || [];
+        if (!selectedValues1[i]) {
+            // 2列目が未選択の場合、内容を空白にする
+            const modifiedRow = emptyRow.replace(/<td>(.*?)<\/td>/g, (match, p1) => '<td></td>');
+            document.getElementById('tableBody').innerHTML += `<tr class="${rowClass}">${modifiedRow}</tr>`;
+        } else {
+            document.getElementById('tableBody').innerHTML += `<tr class="${rowClass}">${emptyRow}</tr>`;
+        }
+    }
+}
+
+function updateSelectedValue1(rowIndex, selectedValue) {
+    selectedValues1[rowIndex] = selectedValue; // 選択された値を保存
+
+    const cells = document.querySelectorAll(`#tableBody tr`);
+    if (cells.length > rowIndex) {
+        const targetRow = cells[rowIndex].children;
+
+        // 「選択」または空白が選ばれた場合はA列とC列以降を空白にする
+        if (selectedValue === "" || selectedValue === "選択") {
+            targetRow[0].innerText = ''; // A列を空白に
+            for (let i = 2; i < visibleColumns; i++) {
+                targetRow[i].innerText = ''; // C列以降を空白に
+            }
+        }
+    }
+}
+
+function renderTable2(data) {
+    const header = data.header;
+    const rows = data.data;
+
+    // ヘッダーの表示
+    const headerRow = header.slice(0, visibleColumns).map(col => `<th>${col}</th>`).join('');
+    document.getElementById('header2').innerHTML = `<tr>${headerRow}</tr>`;
+
+    // ユニークな値を取得してプルダウンの選択肢を作成
+    const uniqueValues = [...new Set(rows.map(row => row[1]))]; // B列のユニークな値
+    uniqueValues.sort(); // 50音順にソート
+
+    // ドロップダウンの選択肢を定義
+    const dropdownOptions = [
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10",
+        "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨",
+        "完"
+    ];
+    const fixedRowCount = 2; // 固定行数
+    // 1行目を表示
+    const rowClass = 'row-style-1'; // スタイルを適用
+    const singleRow = header.slice(0, visibleColumns).map((col, index) => {
+        if (index === 1) { // 2列目
+            return `<td>
+                <select id="dropdown2-0" onchange="updateSelectedValue2(0, this.value)">
+                    <option value="">選択</option>
+                    ${uniqueValues.map(value => `<option value="${value}">${value}</option>`).join('')}
+                </select>
+            </td>`;
+        } else {
+            return '<td></td>'; // 他の列は空白
+        }
+    }).join('');
+
+    // 1行目を追加
+    document.getElementById('tableBody2').innerHTML += `<tr class="${rowClass}">${singleRow}</tr>`;
+
+    // 同じ内容の行を追加（2行目）
+    const additionalRow = header.slice(0, visibleColumns).map((col, index) => {
+        if (index === 2) { // 3列目
+            return `<td>新レベル→</td>`; // 3列目に「新レベル→」を表示
+        }  else if (index >= 3) { // D列以降
+            return `<td>
+                <select id="dropdown2-${index}" onchange="updateSelectedValue2(1, this.value)">
+                    <option value="">選択</option>
+                    ${dropdownOptions.map(value => `<option value="${value}">${value}</option>`).join('')}
+                </select>
+            </td>`; // D列以降のセルにドロップダウンを表示
+        } else {
+            return '<td></td>'; // 他の列は空白
+        }
+    }).join('');
+
+    // 追加された行を追加
+    document.getElementById('tableBody2').innerHTML += `<tr class="${rowClass}">${additionalRow}</tr>`;
+}
+
+function updateSelectedValue2(rowIndex, selectedValue) {
+    selectedValues2[rowIndex] = selectedValue; // 選択された値を保存
+
+    const cells = document.querySelectorAll(`#tableBody2 tr`);
+    if (cells.length > rowIndex) {
+        const targetRow = cells[rowIndex].children;
+
+        // 「選択」または空白が選ばれた場合はA列を空白にするが、C列以降は空白にしない
+        if (selectedValue === "" || selectedValue === "選択") {
+            targetRow[0].innerText = ''; // A列を空白に
+            // C列以降はそのままにする（何もしない）
+        }
+    }
+}
+
+function toggleHighlight(cell) {
+    cell.classList.toggle('highlight'); // ハイライトクラスをトグル
+}
+
+function showDropdown(rowIndex, columnIndex) {
+    if (columnIndex >= 3) { // D列以降の場合
+        // ドロップダウンの選択肢を定義
+        const dropdownOptions = [
+            "1", "2", "3", "4", "5", "6", "7", "8", "9", "10",
+            "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨",
+            "完"
+        ];
+        
+        // ドロップダウンのHTMLを生成
+        const dropdownHtml = `
+            <select id="tempDropdown" onchange="updateSelectedValue2(${rowIndex}, this.value)">
+                <option value="">選択</option>
+                ${dropdownOptions.map(value => `<option value="${value}">${value}</option>`).join('')}
+            </select>
+        `;
+
+        // クリックされたセルにドロップダウンを挿入
+        const cell = document.querySelector(`#tableBody2 tr:nth-child(${rowIndex + 1}) td:nth-child(${columnIndex + 1})`);
+        cell.innerHTML = dropdownHtml; // ドロップダウンをセルに挿入
+        document.getElementById('tempDropdown').focus(); // ドロップダウンにフォーカスを当てる
+    }
+}
+
+function updateCellValue(rowIndex, columnIndex, value) {
+// セルの値を更新する処理を追加
+console.log(`Row: ${rowIndex}, Column: ${columnIndex}, New Value: ${value}`);
+// ここで何か処理を行うことができます（例: 値を保存するなど）
+}
+
+function updateAllRows() {
+selectedValues1.forEach((value, index) => {
+if (value) {
+google.script.run.withSuccessHandler(row => fillCellsForTable1(row, index)).getRowByValue(value);
+}
+});
+selectedValues2.forEach((value, index) => {
+if (value) {
+google.script.run.withSuccessHandler(row => fillCellsForTable2(row, index)).getRowByValue(value); // テーブル2用の関数を使用
+}
+});
+}
+
+function fillCellsForTable1(row, rowIndex) {
+    const cells = document.querySelectorAll(`#tableBody tr`);
+    if (cells.length > 0 && row.length > 0) {
+        const targetRow = cells[rowIndex].children; // 指定された行の各セルを取得
+// A列の処理
+targetRow[0].innerText = row[0]; // A列を設定
+
+// C列の処理
+targetRow[2].innerText = row[2] || ''; // C列を設定
+
+// 4列目以降の処理
+for (let i = 3; i < visibleColumns; i++) {
+    targetRow[i].innerText = row[i] || ''; // C列以降を埋める
+}
+
+        // 2列目が選択されていない場合は、3列目以降を空白にする
+        if (!row[1]) {
+            for (let i = 1; i < visibleColumns; i++) {
+                targetRow[i].innerText = ''; // 2列目以降を空白に
+            }
+        } else {
+        // B列にプルダウンを再表示し、選択された値を反映
+        const uniqueValues = [...new Set(rows.map(row => row[1]))]; // ユニークな値を再取得
+        targetRow[1].innerHTML = `
+            <select id="dropdown1-${rowIndex}" onchange="updateSelectedValue1(${rowIndex}, this.value)">
+                <option value="">選択</option>
+                ${uniqueValues.map(value => `
+                    <option value="${value}" ${row[1] === value ? 'selected' : ''}>${value}</option>
+                `).join('')}
+            </select>`;
+        }
+    }
+}
+
+function fillCellsForTable2(row, rowIndex) {
+    const cells = document.querySelectorAll(`#tableBody2 tr`);
+    if (cells.length > 0 && row.length > 0) {
+        const targetRow = cells[rowIndex].children; // 指定された行の各セルを取得
+// A列の処理
+targetRow[0].innerText = row[0]; // A列を設定
+
+// C列の処理
+targetRow[2].innerText = row[2] || ''; // C列を設定
+
+// 4列目以降の処理
+for (let i = 3; i < visibleColumns; i++) {
+    targetRow[i].innerText = row[i] || ''; // C列以降を埋める
+}
+
+        // 2列目が選択されていない場合は、3列目以降を空白にする
+        if (!row[1]) {
+            for (let i = 1; i < targetRow.length; i++) {
+                targetRow[i].innerText = ''; // 2列目以降を空白に
+            }
+        } else {
+        // B列にプルダウンを再表示し、選択された値を反映
+        const uniqueValues = [...new Set(rows.map(row => row[1]))]; // ユニークな値を再取得
+        targetRow[1].innerHTML = `
+            <select id="dropdown1-${rowIndex}" onchange="updateSelectedValue2(${rowIndex}, this.value)">
+                <option value="">選択</option>
+                ${uniqueValues.map(value => `
+                    <option value="${value}" ${row[1] === value ? 'selected' : ''}>${value}</option>
+                `).join('')}
+            </select>`;
+
+        }
+    }
+}
+
+function updateVisibleColumns() {
+const select = document.getElementById('columnSelect');
+visibleColumns = select.value === "all" ? 23 : parseInt(select.value); // "全て"の場合は20列表示
+document.getElementById('tableBody').innerHTML = ''; // テーブルをクリア
+document.getElementById('tableBody2').innerHTML = ''; // スキルレベル登録のテーブルもクリア
+onLoad(); // テーブルを再描画
+}
+
+function showConfirmationDialog() {
+    const newValuesMap = {}; // ヘッダー名をキー、対応する新しい値を格納するオブジェクト
+    const originalValues = []; // 元の値を格納する配列
+
+    // 確認メッセージの初期化
+    let message = "スキルレベルを更新しますか？\n\n";
+
+    let hasUpdates = false; // 更新があるかどうかのフラグ
+
+    // table2のヘッダー行と元の値を取得
+    const headerRowTable2 = document.querySelectorAll('#header2 th');
+    const originalRowTable2 = document.querySelectorAll('#tableBody2 tr')[0].children;
+    const newRowTable2 = document.querySelectorAll('#tableBody2 tr')[1].children;
+
+    // 1行目の2列目から選択された名前を取得
+    const selectedName = originalRowTable2[1].querySelector('select') ? originalRowTable2[1].querySelector('select').value : '';
+
+    // 名前が選択されているか確認
+    if (!selectedName) {
+        alert("名前が選択されていません！"); // 名前が選択されていない場合に警告
+        return; // 処理を中断
+    }
+
+    for (let i = 0; i < newRowTable2.length; i++) {
+        // 新しい値のドロップダウンから選択値を取得
+        const dropdown = newRowTable2[i].querySelector('select');
+        const newValue = dropdown ? dropdown.value : ""; // 選択された値を取得
+
+        const originalValue = originalRowTable2[i].innerText; // 元の値を取得
+        const headerName = headerRowTable2[i].innerText; // ヘッダー名を取得
+
+        // 新しい値が存在する場合のみ処理
+        if (newValue && newValue !== "選択" && newValue !== "") {
+            newValuesMap[headerName] = newValue; // ヘッダー名と新しい値をマッピング
+            message += `${headerName}: ${originalValue} → ${newValue}\n`; // 確認メッセージを作成
+            hasUpdates = true; // 更新フラグを立てる
+        } else {
+            // 新しい値がない場合は元の値を使用
+            newValuesMap[headerName] = originalValue; // 元の値を保持
+        }
+    }
+
+    // 確認メッセージに選択された名前を追加
+    message += `名前: ${selectedName}\n`;
+
+    // 確認ダイアログを表示
+    if (hasUpdates) {
+        if (confirm(message)) {
+            // スキルレベルだけを更新する関数を呼び出す
+            google.script.run.withSuccessHandler(() => {
+                alert("スキルレベルが更新されました。");
+            }).updateRowByValue(selectedName, newValuesMap); // google.script.runを使用して呼び出す
+        }
+    } else {
+        alert("更新する値がありません。"); // 更新する値がない場合の警告
+    }
+}
+
+function saveSettings() {
+    const settings = {
+        selectedValues: selectedValues1, // プルダウンで選択された値
+        highlightedCells: Array.from(document.querySelectorAll('#tableBody tr')).flatMap((row, rowIndex) => {
+            return Array.from(row.children).map((cell, cellIndex) => {
+                // ハイライトされているセルのインデックスを保存
+                return cell.classList.contains('highlight') ? { row: rowIndex, cell: cellIndex } : null;
+            }).filter(cell => cell !== null); // nullを除外
+        })
+    };
+
+    const blob = new Blob([JSON.stringify(settings)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'table1_settings.json'; // 保存するファイル名
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url); // URLを解放
+
+    // ユーザーへの通知
+    alert("設定が保存されました。");
+}
+
+function loadSettings() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.onchange = (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const settings = JSON.parse(e.target.result);
+
+                // 選択された値を適用
+                selectedValues1 = settings.selectedValues;
+                const cells = document.querySelectorAll(`#tableBody tr`);
+                cells.forEach((cell, rowIndex) => {
+                    const dropdown = cell.querySelector(`select`);
+                    if (dropdown) {
+                        dropdown.value = selectedValues1[rowIndex]; // 選択値を設定
+                    }
+
+                    // ハイライトの適用
+                    settings.highlightedCells.forEach(({ row, cell: cellIndex }) => {
+                        if (row === rowIndex) {
+                            const targetCell = cell.children[cellIndex];
+                            if (targetCell) {
+                                targetCell.classList.add('highlight'); // 特定のセルにハイライトを追加
+                            }
+                        }
+                    });
+                });
+
+                // ユーザーへの通知
+                alert("設定がロードされました。");
+            };
+            reader.readAsText(file); // ファイルをテキストとして読み込む
+        }
+    };
+    input.click(); // ファイル選択ダイアログを表示
+}
+
+</script>
+</head>
+<body onload="onLoad()">
+<h1>
+パテメンスキル
+<span id="lastUpdated" class="margin-left" style="font-size: 0.9em;"></span>
+<span class="small-text margin-left">列数:</span>
+<select id="columnSelect" class="margin-left" onchange="updateVisibleColumns()">
+<option value="all">全て</option> <!-- デフォルトを「全て」に設定 -->
+<option value="8">5列</option>
+<option value="13">10列</option>
+</select>
+<span class="small-text margin-left">行数:</span>
+<select id="rowSelect" class="margin-left" onchange="updateRowCount()">
+    <option value="5">5行</option>
+    <option value="20">20行</option>
+    <option value="30">30行</option>
+    <option value="50">50行</option>
+</select>
+    <span class="small-text margin-left">名前を選んだら</span>
+    <button class="margin-left" onclick="updateAllRows()">表示の更新</button>
+    <span class="small-text margin-left">を押してね。</span>
+    <button class="margin-left" onclick="saveSettings()">設定セーブ</button>
+    <button class="margin-left" onclick="loadSettings()">設定ロード</button>
+</h1>
+<table border="1">
+<thead id="header"></thead>
+<tbody id="tableBody"></tbody>
+</table>
+
+<h1>
+スキルレベル登録
+    <span class="small-text margin-left">名前を選んだら</span>
+    <button class="margin-left" onclick="updateAllRows()">表示の更新</button>
+    <span class="small-text margin-left">を押してね。次にスキルを選んで、</span>
+<button class="margin-left" onclick="showConfirmationDialog()">登録</button> <!-- 登録ボタン -->
+    <span class="small-text margin-left">を押してね。</span>
+</h1>
+<table border="1">
+<thead id="header2"></thead>
+<tbody id="tableBody2"></tbody>
+</table>
+</body>
+</html>
